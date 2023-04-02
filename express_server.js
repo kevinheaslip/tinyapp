@@ -34,7 +34,10 @@ app.get('/urls', (req, res) => {
 
 app.post('/urls', (req, res) => {
   console.log(req.body); // log the POST request body to the console
-  res.send("Ok"); // respond with 'Ok' (we will replace this)
+  const randomKey = generateRandomString();
+  urlDatabase[randomKey] = req.body.longURL;
+  // res.send("Ok"); // respond with 'Ok' (we will replace this)
+  res.redirect(`/urls/${randomKey}`);
 });
 
 app.get('/urls/new', (req, res) => {
