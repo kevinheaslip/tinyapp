@@ -62,6 +62,16 @@ app.get('/urls/new', (req, res) => {
   res.render('urls_new', templateVars);
 });
 
+app.get('/register', (req, res) => {
+  const templateVars = {
+    email: req.body.email,
+    password: req.body.password,
+    urls: urlDatabase,
+    username: req.cookies["username"]
+  };
+  res.render('urls_register', templateVars);
+});
+
 app.get('/urls/:id', (req, res) => {
   const templateVars = {
     id: req.params.id,
