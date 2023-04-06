@@ -31,7 +31,7 @@ const generateRandomString = function() {
 };
 
 // checks to see if an email already exists inside the users object
-const userEmailCheck = function(email) {
+const getUserByEmail = function(email) {
   for (const user in users) {
     if (email === users[user].email) {
       return users[user];
@@ -88,7 +88,7 @@ app.post('/register', (req, res) => {
     res.sendStatus(400);
   }
   // sends 400 bad request if someone tries to register with an email that is already registered
-  if (userEmailCheck(req.body.email) !== null) {
+  if (getUserByEmail(req.body.email) !== null) {
     res.sendStatus(400);
   }
 
@@ -112,6 +112,15 @@ app.get('/register', (req, res) => {
     user: users[req.cookies["user_id"]],
   };
   res.render('urls_register', templateVars);
+});
+
+app.get('/login', (req, res) => {
+  const templateVars = {
+    email: req.body.email,
+    password: req.body.password,
+    user: users[req.cookies["user_id"]],
+  };
+  res.render('urls_login', templateVars);
 });
 
 app.get('/urls/:id', (req, res) => {
