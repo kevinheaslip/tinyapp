@@ -68,21 +68,26 @@ app.post('/urls', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
+  // look up email address submitted in login form in user object
+  if (!getUserByEmail(req.body.email)) {
+    res.sendStatus(403); // need to return a response here also
+  }
+  const user = getUserByEmail(req.body.email);
+  // if the submitted password matches the user password in the database, set a cookie with the user ID
+  if (req.body.password === user.password) {
+    res.cookie('user_id', user.id);
+  } else {
+    res.sendStatus(403); // need to return a response here also
+  }
   res.redirect('urls');
 });
 
 app.post('/logout', (req, res) => {
-  res.redirect('/urls');
+  res.clearCookie('user_id');
+  res.redirect('/login');
 });
 
 app.post('/register', (req, res) => {
-  const userId = generateRandomString();
-  // assign new user an id and store their information in an object in users
-  users[userId] = {
-    id: userId,
-    email: req.body.email,
-    password: req.body.password,
-  };
   // sends 400 bad request if someone tries to register with blank email/password
   if (req.body.email === "" || req.body.password === "") {
     res.sendStatus(400);
@@ -91,7 +96,13 @@ app.post('/register', (req, res) => {
   if (getUserByEmail(req.body.email) !== null) {
     res.sendStatus(400);
   }
-
+  const userId = generateRandomString();
+  // assign new user an id and store their information in an object in users
+  users[userId] = {
+    id: userId,
+    email: req.body.email,
+    password: req.body.password,
+  };
   res.cookie('user_id', userId);
   res.redirect('/urls');
 });
