@@ -174,6 +174,7 @@ app.post('/urls/:id/delete', (req, res) => {
 
 app.get('/u/:id', (req, res) => {
   const longUrl = urlDatabase[req.params.id];
+  // notify the user if a requested ID is not in the database
   if (!longUrl) {
     res.status(404).send('Sorry, that tinyURL doesn\'t exist!');
   }
