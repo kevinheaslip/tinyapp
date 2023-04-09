@@ -70,14 +70,14 @@ app.post('/urls', (req, res) => {
 app.post('/login', (req, res) => {
   // look up email address submitted in login form in user object
   if (!getUserByEmail(req.body.email)) {
-    res.sendStatus(403); // need to return a response here also
+    res.status(403).send('Invalid credentials!');
   }
   const user = getUserByEmail(req.body.email);
   // if the submitted password matches the user password in the database, set a cookie with the user ID
   if (req.body.password === user.password) {
     res.cookie('user_id', user.id);
   } else {
-    res.sendStatus(403); // need to return a response here also
+    res.status(403).send('Invalid credentials!');
   }
   res.redirect('urls');
 });
