@@ -1,12 +1,17 @@
 const express = require('express');
-const cookieParser = require('cookie-parser');
+const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
 const app = express();
 const PORT = 8080; // default port 8080
 
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+app.use(cookieSession({
+  name: 'session',
+  keys: ['secret', 'keys'],
+
+  maxAge: 24 * 60 * 60 * 1000 // 24 hours
+}));
 
 const urlDatabase = {};
 const users = {};
@@ -53,20 +58,20 @@ app.get('/hello', (req, res) => {
 
 app.get('/urls', (req, res) => {
   // user must be logged in to view urls
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     res.status(403).send('Must be registered/logged in to view tinyURLs!');
     return;
   }
   const templateVars = {
-    urls: urlsForUser(req.cookies["user_id"]),
-    user: users[req.cookies["user_id"]],
+    urls: urlsForUser(req.session.user_id),
+    user: users[req.session.user_id],
   };
   res.render('urls_index', templateVars);
 });
 
 app.post('/urls', (req, res) => {
   // user must be logged in to create new tinyURLs
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     res.status(403).send('Must be registered/logged in to create a new tinyURL!');
     return;
   }
@@ -74,7 +79,7 @@ app.post('/urls', (req, res) => {
   const id = generateRandomString();
   urlDatabase[id] = {
     longURL: req.body.longURL,
-    userID: req.cookies["user_id"],
+    userID: req.session.user_id,
   };
   res.redirect(`/urls/${id}`);
 });
@@ -87,8 +92,7 @@ app.post('/login', (req, res) => {
   const user = getUserByEmail(req.body.email);
   // if the submitted password matches the user password in the database, set a cookie with the user ID
   if (bcrypt.compareSync(req.body.password, user.password)) {
-    console.log(users);
-    res.cookie('user_id', user.id);
+    req.session["user_id"] = user.id;
   } else {
     res.status(403).send('Invalid credentials!');
   }
@@ -96,7 +100,7 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/logout', (req, res) => {
-  res.clearCookie('user_id');
+  req.session = null;
   res.redirect('/login');
 });
 
@@ -110,20 +114,21 @@ app.post('/register', (req, res) => {
     res.sendStatus(400);
   }
   const userId = generateRandomString();
+  const hashedPassword = bcrypt.hashSync(req.body.password, 10);
   // assign new user an id and store their information in an object in users
   users[userId] = {
     id: userId,
     email: req.body.email,
-    password: bcrypt.hashSync(req.body.password, 10),
+    password: hashedPassword,
   };
-  res.cookie('user_id', userId);
+  req.session["user_id"] = userId;
   res.redirect('/urls');
 });
 
 app.get('/urls/new', (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
   // if the user is not logged in, redirect them to /login
   if (!templateVars.user) {
@@ -137,7 +142,7 @@ app.get('/register', (req, res) => {
     email: req.body.email,
     password: req.body.password,
     urls: urlDatabase,
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
   // if the user is logged in, redirect them to /urls
   if (templateVars.user) {
@@ -150,7 +155,7 @@ app.get('/login', (req, res) => {
   const templateVars = {
     email: req.body.email,
     password: req.body.password,
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
   // if the user is logged in, redirect them to /urls
   if (templateVars.user) {
@@ -161,12 +166,12 @@ app.get('/login', (req, res) => {
 
 app.get('/urls/:id', (req, res) => {
   // user must be logged in to view urls
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     res.status(403).send('Must be registered/logged in to view tinyURLs!');
     return;
   }
   // user can only view their own urls
-  if (req.cookies["user_id"] !== urlDatabase[req.params.id].userID) {
+  if (req.session.user_id !== urlDatabase[req.params.id].userID) {
     res.status(403).send('This tinyURL does not belong to you!');
     return;
   }
@@ -174,7 +179,7 @@ app.get('/urls/:id', (req, res) => {
     id: req.params.id,
     longURL: urlDatabase[req.params.id].longURL,
     urls: urlDatabase,
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
   res.render('urls_show', templateVars);
 });
@@ -186,12 +191,12 @@ app.post('/urls/:id', (req, res) => {
     return;
   }
   // user must be logged in to modify urls
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     res.status(403).send('Must be registered/logged in to modify tinyURLs!');
     return;
   }
   // user can only modify their own urls
-  if (req.cookies["user_id"] !== urlDatabase[req.params.id].userID) {
+  if (req.session.user_id !== urlDatabase[req.params.id].userID) {
     res.status(403).send('This tinyURL does not belong to you!');
     return;
   }
@@ -207,12 +212,12 @@ app.post('/urls/:id/delete', (req, res) => {
     return;
   }
   // user must be logged in to modify urls
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     res.status(403).send('Must be registered/logged in to modify tinyURLs!');
     return;
   }
   // user can only modify their own urls
-  if (req.cookies["user_id"] !== urlDatabase[req.params.id].userID) {
+  if (req.session.user_id !== urlDatabase[req.params.id].userID) {
     res.status(403).send('This tinyURL does not belong to you!');
     return;
   }
