@@ -1,5 +1,6 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const bcrypt = require('bcryptjs');
 const app = express();
 const PORT = 8080; // default port 8080
 
@@ -7,29 +8,8 @@ app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-const urlDatabase = {
-  'b2xVn2': {
-    longURL: 'http://www.lighthouselabs.ca',
-    userID: '4lmtms',
-  },
-  '9sm5xK': {
-    longURL: 'http://www.google.com',
-    userID: 'w47m3j',
-  }
-};
-
-const users = {
-  '4lmtms': {
-    id: "4lmtms",
-    email: "steve@apple.com",
-    password: "apple-iphone",
-  },
-  'w47m3j': {
-    id: "w47m3j",
-    email: "bill@microsoft.com",
-    password: "windows-eight",
-  },
-};
+const urlDatabase = {};
+const users = {};
 
 // generates a random six character alphanumeric string
 const generateRandomString = function() {
@@ -106,7 +86,8 @@ app.post('/login', (req, res) => {
   }
   const user = getUserByEmail(req.body.email);
   // if the submitted password matches the user password in the database, set a cookie with the user ID
-  if (req.body.password === user.password) {
+  if (bcrypt.compareSync(req.body.password, user.password)) {
+    console.log(users);
     res.cookie('user_id', user.id);
   } else {
     res.status(403).send('Invalid credentials!');
@@ -133,7 +114,7 @@ app.post('/register', (req, res) => {
   users[userId] = {
     id: userId,
     email: req.body.email,
-    password: req.body.password,
+    password: bcrypt.hashSync(req.body.password, 10),
   };
   res.cookie('user_id', userId);
   res.redirect('/urls');
