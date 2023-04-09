@@ -8,8 +8,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 const urlDatabase = {
-  'b2xVn2': 'http://www.lighthouselabs.ca',
-  '9sm5xK': 'http://www.google.com',
+  'b2xVn2': {
+    longURL: 'http://www.lighthouselabs.ca',
+    userID: '4lmtms',
+  },
+  '9sm5xK': {
+    longURL: 'http://www.google.com',
+    userID: 'w47m3j',
+  }
 };
 
 const users = {
@@ -40,6 +46,19 @@ const getUserByEmail = function(email) {
   return null;
 };
 
+// filters urlDatabase for urls with a userID that matches cookie userID
+const urlsForUser = function(id) {
+  const userUrls = {};
+  for (const entry in urlDatabase) {
+    if (urlDatabase[entry].userID === id) {
+      userUrls[entry] = {
+        longURL: urlDatabase[entry].longURL,
+      };
+    }
+  }
+  return userUrls;
+};
+
 app.get('/', (req, res) => {
   res.send('Hello!');
 });
@@ -53,8 +72,13 @@ app.get('/hello', (req, res) => {
 });
 
 app.get('/urls', (req, res) => {
+  // user must be logged in to view urls
+  if (!req.cookies["user_id"]) {
+    res.status(403).send('Must be registered/logged in to view tinyURLs!');
+    return;
+  }
   const templateVars = {
-    urls: urlDatabase,
+    urls: urlsForUser(req.cookies["user_id"]),
     user: users[req.cookies["user_id"]],
   };
   res.render('urls_index', templateVars);
@@ -63,12 +87,15 @@ app.get('/urls', (req, res) => {
 app.post('/urls', (req, res) => {
   // user must be logged in to create new tinyURLs
   if (!req.cookies["user_id"]) {
-    res.status(403).send('Must be logged in to create a new tinyURL!');
+    res.status(403).send('Must be registered/logged in to create a new tinyURL!');
     return;
   }
   console.log(req.body); // log the POST request body to the console
   const id = generateRandomString();
-  urlDatabase[id] = req.body.longURL;
+  urlDatabase[id] = {
+    longURL: req.body.longURL,
+    userID: req.cookies["user_id"],
+  };
   res.redirect(`/urls/${id}`);
 });
 
@@ -152,9 +179,19 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/urls/:id', (req, res) => {
+  // user must be logged in to view urls
+  if (!req.cookies["user_id"]) {
+    res.status(403).send('Must be registered/logged in to view tinyURLs!');
+    return;
+  }
+  // user can only view their own urls
+  if (req.cookies["user_id"] !== urlDatabase[req.params.id].userID) {
+    res.status(403).send('This tinyURL does not belong to you!');
+    return;
+  }
   const templateVars = {
     id: req.params.id,
-    longURL: urlDatabase[req.params.id],
+    longURL: urlDatabase[req.params.id].longURL,
     urls: urlDatabase,
     user: users[req.cookies["user_id"]],
   };
@@ -162,18 +199,48 @@ app.get('/urls/:id', (req, res) => {
 });
 
 app.post('/urls/:id', (req, res) => {
+  // id does not exist
+  if (!urlDatabase[req.params.id]) {
+    res.status(404).send('Sorry, that tinyURL doesn\'t exist!');
+    return;
+  }
+  // user must be logged in to modify urls
+  if (!req.cookies["user_id"]) {
+    res.status(403).send('Must be registered/logged in to modify tinyURLs!');
+    return;
+  }
+  // user can only modify their own urls
+  if (req.cookies["user_id"] !== urlDatabase[req.params.id].userID) {
+    res.status(403).send('This tinyURL does not belong to you!');
+    return;
+  }
   const updatedLongUrl = req.body.longURL;
-  urlDatabase[req.params.id] = updatedLongUrl;
+  urlDatabase[req.params.id].longURL = updatedLongUrl;
   res.redirect('/urls');
 });
 
 app.post('/urls/:id/delete', (req, res) => {
+  // id does not exist
+  if (!urlDatabase[req.params.id]) {
+    res.status(404).send('Sorry, that tinyURL doesn\'t exist!');
+    return;
+  }
+  // user must be logged in to modify urls
+  if (!req.cookies["user_id"]) {
+    res.status(403).send('Must be registered/logged in to modify tinyURLs!');
+    return;
+  }
+  // user can only modify their own urls
+  if (req.cookies["user_id"] !== urlDatabase[req.params.id].userID) {
+    res.status(403).send('This tinyURL does not belong to you!');
+    return;
+  }
   delete urlDatabase[req.params.id];
   res.redirect('/urls');
 });
 
 app.get('/u/:id', (req, res) => {
-  const longUrl = urlDatabase[req.params.id];
+  const longUrl = urlDatabase[req.params.id].longURL;
   // notify the user if a requested ID is not in the database
   if (!longUrl) {
     res.status(404).send('Sorry, that tinyURL doesn\'t exist!');
