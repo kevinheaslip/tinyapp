@@ -61,6 +61,11 @@ app.get('/urls', (req, res) => {
 });
 
 app.post('/urls', (req, res) => {
+  // user must be logged in to create new tinyURLs
+  if (!req.cookies["user_id"]) {
+    res.status(403).send('Must be logged in to create a new tinyURL!');
+    return;
+  }
   console.log(req.body); // log the POST request body to the console
   const id = generateRandomString();
   urlDatabase[id] = req.body.longURL;
@@ -112,6 +117,10 @@ app.get('/urls/new', (req, res) => {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]],
   };
+  // if the user is not logged in, redirect them to /login
+  if (!templateVars.user) {
+    res.redirect('/login');
+  }
   res.render('urls_new', templateVars);
 });
 
@@ -122,6 +131,10 @@ app.get('/register', (req, res) => {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]],
   };
+  // if the user is logged in, redirect them to /urls
+  if (templateVars.user) {
+    res.redirect('/urls');
+  }
   res.render('urls_register', templateVars);
 });
 
@@ -131,6 +144,10 @@ app.get('/login', (req, res) => {
     password: req.body.password,
     user: users[req.cookies["user_id"]],
   };
+  // if the user is logged in, redirect them to /urls
+  if (templateVars.user) {
+    res.redirect('/urls');
+  }
   res.render('urls_login', templateVars);
 });
 
@@ -157,6 +174,9 @@ app.post('/urls/:id/delete', (req, res) => {
 
 app.get('/u/:id', (req, res) => {
   const longUrl = urlDatabase[req.params.id];
+  if (!longUrl) {
+    res.status(404).send('Sorry, that tinyURL doesn\'t exist!');
+  }
   res.redirect(longUrl);
 });
 
