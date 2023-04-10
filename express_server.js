@@ -1,6 +1,7 @@
 const express = require('express');
 const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
+const { getUserByEmail, generateRandomString, urlsForUser } = require('./helpers');
 const app = express();
 const PORT = 8080; // default port 8080
 
@@ -14,34 +15,6 @@ app.use(cookieSession({
 
 const urlDatabase = {};
 const users = {};
-
-// generates a random six character alphanumeric string
-const generateRandomString = function() {
-  return Math.random().toString(36).replace('0.', '').substring(0, 6);
-};
-
-// checks to see if an email already exists inside the users object
-const getUserByEmail = function(email, database) {
-  for (const user in database) {
-    if (email === database[user].email) {
-      return database[user];
-    }
-  }
-  return null;
-};
-
-// filters urlDatabase for urls with a userID that matches cookie userID
-const urlsForUser = function(id, database) {
-  const userUrls = {};
-  for (const entry in database) {
-    if (database[entry].userID === id) {
-      userUrls[entry] = {
-        longURL: database[entry].longURL,
-      };
-    }
-  }
-  return userUrls;
-};
 
 app.get('/', (req, res) => {
   res.send('Hello!');
