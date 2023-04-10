@@ -9,7 +9,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieSession({
   name: 'session',
   keys: ['secret', 'keys'],
-
   maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }));
 
@@ -22,22 +21,22 @@ const generateRandomString = function() {
 };
 
 // checks to see if an email already exists inside the users object
-const getUserByEmail = function(email) {
-  for (const user in users) {
-    if (email === users[user].email) {
-      return users[user];
+const getUserByEmail = function(email, database) {
+  for (const user in database) {
+    if (email === database[user].email) {
+      return database[user];
     }
   }
   return null;
 };
 
 // filters urlDatabase for urls with a userID that matches cookie userID
-const urlsForUser = function(id) {
+const urlsForUser = function(id, database) {
   const userUrls = {};
-  for (const entry in urlDatabase) {
-    if (urlDatabase[entry].userID === id) {
+  for (const entry in database) {
+    if (database[entry].userID === id) {
       userUrls[entry] = {
-        longURL: urlDatabase[entry].longURL,
+        longURL: database[entry].longURL,
       };
     }
   }
@@ -63,7 +62,7 @@ app.get('/urls', (req, res) => {
     return;
   }
   const templateVars = {
-    urls: urlsForUser(req.session.user_id),
+    urls: urlsForUser(req.session.user_id, urlDatabase),
     user: users[req.session.user_id],
   };
   res.render('urls_index', templateVars);
@@ -86,10 +85,10 @@ app.post('/urls', (req, res) => {
 
 app.post('/login', (req, res) => {
   // look up email address submitted in login form in user object
-  if (!getUserByEmail(req.body.email)) {
+  if (!getUserByEmail(req.body.email, users)) {
     res.status(403).send('Invalid credentials!');
   }
-  const user = getUserByEmail(req.body.email);
+  const user = getUserByEmail(req.body.email, users);
   // if the submitted password matches the user password in the database, set a cookie with the user ID
   if (bcrypt.compareSync(req.body.password, user.password)) {
     req.session["user_id"] = user.id;
@@ -110,7 +109,7 @@ app.post('/register', (req, res) => {
     res.sendStatus(400);
   }
   // sends 400 bad request if someone tries to register with an email that is already registered
-  if (getUserByEmail(req.body.email) !== null) {
+  if (getUserByEmail(req.body.email, users) !== null) {
     res.sendStatus(400);
   }
   const userId = generateRandomString();
